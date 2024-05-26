@@ -39,7 +39,6 @@ PoC Design (Includes only parts that will be handled in this project)
 
 Scam Prevention Model
 
-
 - Datasets: Data is stored in a Data Warehouse (DWH) and includes aggregated user behavior information such as time spent on the platform, sentiment analysis of messages, and the number of messages, among 30 different features. The training dataset is built from historical data collected by analytics, with false positive and true positive cases reviewed by moderators. Model performance is validated by moderators who process the cases and provide real labels.
 
 - Data Updates: Data updates occur regularly throughout the day in the analytical storage, with features recalculated before running the prediction job. The prediction job runs daily for active users from the latest period.
@@ -55,7 +54,7 @@ Image Classification Model
 
 Scam Prevention Model
 
-Preprocessing involves scaling numerical features, encoding categorical features, cleaning outliers, and balancing the data. Data is stored/updated in the DWH and queried to form datasets stored in Google Cloud Storage (GCS) in Parquet format. These datasets are used for training, validation, and prediction. Data flows use Airflow to move data from the source to the DWH, and Dataform processes it within the DWH to create the required features.
+Preprocessing involves scaling numerical features, encoding categorical features, cleaning outliers, and balancing the data. Data is stored/updated in the DWH and queried to form datasets that are also stored in BigQuery. These datasets are used for training, validation, and prediction. Data flows use Airflow to move data from the source to the DWH, and Dataform processes it within the DWH to create the required features.
 
 Image Classification Model
 
@@ -90,9 +89,9 @@ Preprocessing involves using ViTImageProcessor to resize (or rescale) and normal
 
 - Feature Store: Used to define/stire feature sets, host them for online inference, and load for model training/validation/prediction
 
-- ML Pipelines: Service to create and manage ML pipelines that collect/pre-process/validate data, load & train model, validate model, and push it to the registry or just perform online inference.
+- ML Pipelines: Service to create and manage ML pipelines that collect/pre-process/validate data, load & train model, validate model, and push it to the registry or just perform offline inference.
 
-- ML Backend: Service to host ML model for real-time predictions.
+- ML Backend: Service to host ML model for real-time predictions. Uses Online Feature Store to get aggregated data and registries to get server/model artifacts.
 
 - Skew Monitoring Service: Used to validate input/output data for any skews and sends logs of detected outliers to the specified monutoring toolset.
 
@@ -101,11 +100,11 @@ In this project we will implement simplified version, focusing only on the ML pa
 
 ## Requirements Specification
 
-For this project we will use Vertex AI platform as the company leverages GCP services. Custom solutions and other tools were considered (HugginFace, Feast, W&B, Kubeflow, etc.), but according to the project specifications there are no capacity to deploy & support them as well as using multiple number of 3-parties brings lots of risks. 
+For this project we will use Vertex AI platform as the company leverages GCP services. Custom solutions and other tools were considered (HuggingFace, Feast, W&B, Kubeflow, etc.), but according to the project specifications there are no capacity to deploy & support them as well as using multiple number of 3-parties brings lots of risks. 
 
 VertexAI platform components fit greatly and allow future migration to the self-hosted solutions. For example, it is possible to replace VertexAI experiment tracking system with Weights&Biases 3-party if it is required.
 
-Servies & Requirements:
+Services & Requirements:
 
 - Notebooks: VertexAI Workbench
     - Scalability: Must handle multiple users simultaneously.
