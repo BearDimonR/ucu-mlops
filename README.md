@@ -1,132 +1,185 @@
 # ml-design-doc
 
-A template for design docs for machine learning systems based on this [post](https://eugeneyan.com/writing/ml-design-docs/).
+## Project Description
 
-Note: This template is a guideline / checklist and is **not meant to be exhaustive**. The intent of the design doc is to help you think better (about the problem and design) and get feedback. Adopt whichever sections—and add new sections—to meet this goal. View other templates, examples [here](#other-templates-examples-etc).
+**Problem Statement**
 
----
-## 1. Overview
+The company wants to expand its use of machine learning for content moderation but currently lacks a solid framework for retraining models, monitoring, and experimenting. Current methods are limited to local setups (local training, validation, etc.), causing inefficiencies in deployment, monitoring, and versioning. There is no reliable offline inference solution, and monitoring delays make issue detection slow.
 
-A summary of the doc's purpose, problem, solution, and desired outcome, usually in 3-5 sentences.
+**Objectives**
 
-## 2. Motivation
-Why the problem is important to solve, and why now.
+- **User Scam Classifier**: Develop and deploy a user scam classifier to efficiently detect and prevent fraudulent activities on the platform. This classifier will help reduce the number of false positive cases that moderators need to check, improving the accuracy of scam detection.
 
-## 3. Success metrics
-Usually framed as business goals, such as increased customer engagement (e.g., CTR, DAU), revenue, or reduced cost.
+- **Establish Offline Inference Process**: Implement a reliable offline inference solution to handle batch processing and analysis on-demand. The process should run batch inference/training jobs on-demand triggered by external Airflow orchestrator. There should be monitoring ability that can run automatic retraining of the model and perform release. Another request is to be able work and combine different features because they can be reused by different models.
 
-## 4. Requirements & Constraints
-Functional requirements are those that should be met to ship the project. They should be described in terms of the customer perspective and benefit. (See [this](https://eugeneyan.com/writing/ml-design-docs/#the-why-and-what-of-design-docs) for more details.)
+- **Adjust Online Inference Process**: Improve the current online inference process to perform automatic retraining flow as for offline inference, use model versioning, and experiment framework.
 
-Non-functional/technical requirements are those that define system quality and how the system should be implemented. These include performance (throughput, latency, error rates), cost (infra cost, ops effort), security, data privacy, etc.
+## High-Level Design
 
-Constraints can come in the form of non-functional requirements (e.g., cost below $`x` a month, p99 latency < `y`ms)
+**Diagram of the overall system architecture (data flows, components, and interactions).**
 
-### 4.1 What's in-scope & out-of-scope?
-Some problems are too big to solve all at once. Be clear about what's out of scope.
+*Detailed description of the components is located in the service decomposition section*
 
-## 5. Methodology
+Full Design (Including out of scope parts)
+![alt text](full-design.png)
 
-### 5.1. Problem statement
+PoC Design (Includes only parts that will be handled in this project)
+![alt text](poc-design.png)
 
-How will you frame the problem? For example, fraud detection can be framed as an unsupervised (outlier detection, graph cluster) or supervised problem (e.g., classification).
+**Description of the ML models involved, including short description.**
 
-### 5.2. Data
+- **User Scam Classifier**: Model that leverage analytical information stored and calculated in DWH to perform batch inference to predict whether moderator should validate user for fraudulent behaviour performed during the previous day. The model is a classification model with a single probability prediction.
 
-What data will you use to train your model? What input data is needed during serving?
+- **Image Content Classifier**: Fine-tuned VisualTransformer model that is used for custom multi-label image classification. It works straight with application via API and provides real-time classification for images.
 
-### 5.3. Techniques
 
-What machine learning techniques will you use? How will you clean and prepare the data (e.g., excluding outliers) and create features?
+## Data Requirements
 
-### 5.4. Experimentation & Validation
+**Specify the datasets and data updates.**
 
-How will you validate your approach offline? What offline evaluation metrics will you use?
+Scam Prevention Model
 
-If you're A/B testing, how will you assign treatment and control (e.g., customer vs. session-based) and what metrics will you measure? What are the success and [guardrail](https://medium.com/airbnb-engineering/designing-experimentation-guardrails-ed6a976ec669) metrics?
 
-### 5.5. Human-in-the-loop
+- Datasets: Data is stored in a Data Warehouse (DWH) and includes aggregated user behavior information such as time spent on the platform, sentiment analysis of messages, and the number of messages, among 30 different features. The training dataset is built from historical data collected by analytics, with false positive and true positive cases reviewed by moderators. Model performance is validated by moderators who process the cases and provide real labels.
 
-How will you incorporate human intervention into your ML system (e.g., product/customer exclusion lists)?
+- Data Updates: Data updates occur regularly throughout the day in the analytical storage, with features recalculated before running the prediction job. The prediction job runs daily for active users from the latest period.
 
-## 6. Implementation
 
-### 6.1. High-level design
+Image Classification Model
 
-![](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Data-flow-diagram-example.svg/1280px-Data-flow-diagram-example.svg.png)
+- Datasets: Data is stored in application storages. The data loader collects images from external stores to form the dataset for fine-tuning. The data consists of images and labels representing multi-labeled classes that appear in the images, such as QR codes.
+- Data Updates: New images appear in real-time, so the model classifies new images as they are uploaded to the platform.
 
-Start by providing a big-picture view. [System-context diagrams](https://en.wikipedia.org/wiki/System_context_diagram) and [data-flow diagrams](https://en.wikipedia.org/wiki/Data-flow_diagram) work well.
 
-### 6.2. Infra
+**Describe(high level) the data preprocessing steps and how data will be managed and stored.**
 
-How will you host your system? On-premise, cloud, or hybrid? This will define the rest of this section
+Scam Prevention Model
 
-### 6.3. Performance (Throughput, Latency)
+Preprocessing involves scaling numerical features, encoding categorical features, cleaning outliers, and balancing the data. Data is stored/updated in the DWH and queried to form datasets stored in Google Cloud Storage (GCS) in Parquet format. These datasets are used for training, validation, and prediction. Data flows use Airflow to move data from the source to the DWH, and Dataform processes it within the DWH to create the required features.
 
-How will your system meet the throughput and latency requirements? Will it scale vertically or horizontally?
+Image Classification Model
 
-### 6.4. Security
+Preprocessing involves using ViTImageProcessor to resize (or rescale) and normalize images for the model. Raw images are stored in GCS buckets, with links stored in the database. This setup allows fetching samples with provided labels for training purposes.
 
-How will your system/application authenticate users and incoming requests? If it's publicly accessible, will it be behind a firewall?
 
-### 6.5. Data privacy
+## Service Decomposition
 
-How will you ensure the privacy of customer data? Will your system be compliant with data retention and deletion policies (e.g., [GDPR](https://gdpr.eu/what-is-gdpr/))?
+**Product (out of scope)**
 
-### 6.6. Monitoring & Alarms
+- Backend: The business logic of the application splited among a huge variety of different microservices. Each of them stores logs, perform operations with the databases, and can stream some events to the Queue to be consumed by the analytical processes. Moreover, each can potentially call ML API (REST or GRPC).
 
-How will you log events in your system? What metrics will you monitor and how? Will you have alarms if a metric breaches a threshold or something else goes wrong?
+- Logging & Monitoring: Monitoring toolset (Graphana, Prometheus) used by entire business with configured dashboards and notifications channels. It is used to store ML applications and data logs and to trigger the retraining pipelines for the model.
 
-### 6.7. Cost
-How much will it cost to build and operate your system? Share estimated monthly costs (e.g., EC2 instances, Lambda, etc.)
+- Image Registry: Registry with Docker Images, including custom ML servers.
 
-### 6.8. Integration points
+**Analytics (out of scope)**
 
-How will your system integrate with upstream data and downstream users?
+- Airflow: Main orchestrator of analytical, data, and ML workflows. Used for data extraction, storing, processing, and for many other use-cases. Extract data either from Queue or database and ingest into GCS raw storage.
 
-### 6.9. Risks & Uncertainties
+- GCS (Lake): Raw data storage of all information that can be used by analytical or ML processes.
 
-Risks are the known unknowns; uncertainties are the unknown unknows. What worries you and you would like others to review?
+- BigQuery: DWH with processed and aggregated analytical information.
 
-## 7. Appendix
+**ML**
 
-### 7.1. Alternatives
+- Notebooks: Experimental notebooks for analytics & ML specialists, store experiments into metadata store, can extract features from feature store, models from model registry, etc.
 
-What alternatives did you consider and exclude? List pros and cons of each alternative and the rationale for your decision.
+- Metadata store: Store of all metadata & experiments to be able to historically track progress.
 
-### 7.2. Experiment Results
+- Model Registry: Store all models versions.
 
-Share any results of offline experiments that you conducted.
+- Feature Store: Used to define/stire feature sets, host them for online inference, and load for model training/validation/prediction
 
-### 7.3. Performance benchmarks
+- ML Pipelines: Service to create and manage ML pipelines that collect/pre-process/validate data, load & train model, validate model, and push it to the registry or just perform online inference.
 
-Share any performance benchmarks you ran (e.g., throughput vs. latency vs. instance size/count).
+- ML Backend: Service to host ML model for real-time predictions.
 
-### 7.4. Milestones & Timeline
+- Skew Monitoring Service: Used to validate input/output data for any skews and sends logs of detected outliers to the specified monutoring toolset.
 
-What are the key milestones for this system and the estimated timeline?
 
-### 7.5. Glossary
+In this project we will implement simplified version, focusing only on the ML part. Skew Monitoring Service will trigger ML Pipeline directly and cause retraining and release of new model version.
 
-Define and link to business or technical terms.
+## Requirements Specification
 
-### 7.6. References
+For this project we will use Vertex AI platform as the company leverages GCP services. Custom solutions and other tools were considered (HugginFace, Feast, W&B, Kubeflow, etc.), but according to the project specifications there are no capacity to deploy & support them as well as using multiple number of 3-parties brings lots of risks. 
 
-Add references that you might have consulted for your methodology.
+VertexAI platform components fit greatly and allow future migration to the self-hosted solutions. For example, it is possible to replace VertexAI experiment tracking system with Weights&Biases 3-party if it is required.
 
----
-## Other templates, examples, etc
-- [A Software Design Doc](https://www.industrialempathy.com/posts/design-doc-a-design-doc/) `Google`
-- [Design Docs at Google](https://www.industrialempathy.com/posts/design-docs-at-google/) `Google`
-- [Product Spec of Emoji Reactions on Twitter Messages](https://docs.google.com/document/d/1sUX-sm5qZ474PCQQUpvdi3lvvmWPluqHOyfXz3xKL2M/edit#heading=h.554u12gw2xpd) `Twitter`
-- [Design Docs, Markdown, and Git](https://caitiem.com/2020/03/29/design-docs-markdown-and-git/) `Microsoft`
-- [Technical Decision-Making and Alignment in a Remote Culture](https://multithreaded.stitchfix.com/blog/2020/12/07/remote-decision-making/) `Stitchfix`
-- [Design Documents for Chromium](https://www.chromium.org/developers/design-documents) `Chromium`
-- [PRD Template](https://works.hashicorp.com/articles/prd-template) and [RFC Template](https://works.hashicorp.com/articles/rfc-template) (example RFC: [Manager Charter](https://works.hashicorp.com/articles/manager-charter)) `HashiCorp`
-- [Pitch for To-Do Groups and Group Notifications](https://basecamp.com/shapeup/1.5-chapter-06#examples) `Basecamp`
-- [The Anatomy of a 6-pager](https://writingcooperative.com/the-anatomy-of-an-amazon-6-pager-fc79f31a41c9) and an [example](https://docs.google.com/document/d/1LPh1LWx1z67YFo67DENYUGBaoKk39dtX7rWAeQHXzhg/edit) `Amazon`
-- [Writing for Distributed Teams](http://veekaybee.github.io/2021/07/17/p2s/), [How P2 Changed Automattic](https://ma.tt/2009/05/how-p2-changed-automattic/) `Automattic`
-- [Writing Technical Design Docs](https://medium.com/machine-words/writing-technical-design-docs-71f446e42f2e), [Writing Technical Design Docs, Revisited](https://medium.com/machine-words/writing-technical-design-docs-revisited-850d36570ec) `AWS`
-- [How to write a good software design doc](https://www.freecodecamp.org/news/how-to-write-a-good-software-design-document-66fcf019569c/) `Plaid`
+Servies & Requirements:
 
-Contributions [welcome](https://github.com/eugeneyan/ml-design-docs/pulls)!
+- Notebooks: VertexAI Workbench
+    - Scalability: Must handle multiple users simultaneously.
+    - Performance: Integration with GCP resources.
+    - Reliability: High availability with minimal downtime.
+    - Usability: User-friendly interface with GCP services integrations (BigQuery)
+    - Security: Ensure secure access and storage of metadata.
+
+- Metadata store: VertexML Metadata
+    - Scalability: Support for large volumes of metadata.
+    - Performance: Efficient querying and storage.
+    - Security: Ensure secure access and storage of metadata.
+
+- Model Registry: VertexAI Model Registry
+    - Scalability: Capable of handling numerous models and versions.
+    - Performance: Quick retrieval and version control.
+    - Security: Secure model storage and access.
+    - Traceability: Detailed logging of model changes and access history.
+
+- Feature Store: VertexAI Feature Store
+    - Scalability: Manage large datasets and frequent updates.
+    - Performance: Low latency in feature retrieval for online predictions.
+    - Consistency: Ensure data consistency across different systems.
+    - Usability: User-friendly interface with GCP services integrations (BigQuery)
+    - Accessibility: Easy access to features for different teams and models.
+    - Deployment: Fast delivery.
+
+- ML Pipelines: VertexAI Pipelines
+    - Scalability: Handle multiple concurrent pipeline executions.
+    - Performance: Reliable and efficient pipeline orchestration.
+    - Maintainability: Easy to update and modify pipelines.
+    - Deployment: Fast delivery.
+
+- ML Backend: VertexAI Predictions
+    - Scalability: Support high throughput and low latency predictions.
+    - Performance: Ensure quick response times.
+    - Security: Secure model deployment and access.
+    - Reliability: High availability with minimal downtime.
+    - Flexibility: Support for various model types and deployment scenarios.
+    - Effiency: Allows to fully use all allocated resources.
+
+- Skew Monitoring Service: VertexAI Model Monitoring
+    - Performance: Real-time detection of data skew and anomalies.
+    - Alerting: Immediate alerts for detected issues.
+    - Adaptability: Ability to adapt to existing stack.
+    - Deployment: Fast delivery.
+
+
+## Evaluation Metrics
+
+**Define how the performance of the machine learning model will be measured.**
+
+User Scam Classifier:
+- Precision: accuracy of positive predictions.
+- Recall: ability to identify all relevant instances (maximize this metric).
+- F1 Score: Harmonic mean of precision and recall to balance both metrics.
+- False Positive Rate: Track the number of non-fraudulent users flagged.
+
+Image Content Classifier:
+
+- Accuracy: Measure the overall correctness of predictions.
+- Precision and Recall: Specific to each content type.
+- Confusion Matrix: Analyze misclassifications to improve the model.
+
+**Outline the criteria for success of the overall system from both a technical and business perspective.**
+
+Technical Perspective:
+- System Scalability: Ability to handle increasing data volumes and user activity.
+- Latency: Ensure real-time or near-real-time predictions.
+- System Uptime: High availability and reliability of the system.
+- Maintenance: Ease of updating models and pipelines.
+
+Business Perspective:
+- Reduction in Moderation Effort: Lower the number of false positives requiring manual review.
+- Improved Content Safety: Higher accuracy in detecting prohibited content.
+- Cost Efficiency: Reduced operational costs through automation and improved model performance.
+- User Satisfaction: Enhanced user experience by minimizing fraudulent activities and inappropriate content.
