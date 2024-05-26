@@ -111,13 +111,14 @@ Servies & Requirements:
     - Scalability: Must handle multiple users simultaneously.
     - Performance: Integration with GCP resources.
     - Reliability: High availability with minimal downtime.
-    - Usability: User-friendly interface with GCP services integrations (BigQuery)
+    - Usability: User-friendly interface with GCP services integrations (BigQuery).
     - Security: Ensure secure access and storage of metadata.
 
 - Metadata store: VertexML Metadata
     - Scalability: Support for large volumes of metadata.
     - Performance: Efficient querying and storage.
     - Security: Ensure secure access and storage of metadata.
+    - Usability: Fast & Easy integration with other components. 
 
 - Model Registry: VertexAI Model Registry
     - Scalability: Capable of handling numerous models and versions.
@@ -129,8 +130,9 @@ Servies & Requirements:
     - Scalability: Manage large datasets and frequent updates.
     - Performance: Low latency in feature retrieval for online predictions.
     - Consistency: Ensure data consistency across different systems.
-    - Usability: User-friendly interface with GCP services integrations (BigQuery)
+    - Usability: User-friendly interface with GCP services integrations (BigQuery).
     - Accessibility: Easy access to features for different teams and models.
+    - Security: Secure data storage and access.
     - Deployment: Fast delivery.
 
 - ML Pipelines: VertexAI Pipelines
@@ -160,26 +162,32 @@ Servies & Requirements:
 
 User Scam Classifier:
 - Precision: accuracy of positive predictions.
-- Recall: ability to identify all relevant instances (maximize this metric).
+- Recall: ability to identify all relevant cases (maximize this metric).
 - F1 Score: Harmonic mean of precision and recall to balance both metrics.
-- False Positive Rate: Track the number of non-fraudulent users flagged.
+
+The main business goal here is to maximize Recall, while having number of cases not so big to be able to check by moderators.
 
 Image Content Classifier:
 
-- Accuracy: Measure the overall correctness of predictions.
-- Precision and Recall: Specific to each content type.
+- Precision and Recall: Specific to each class type.
 - Confusion Matrix: Analyze misclassifications to improve the model.
+- F1 Score: Harmonic mean of precision and recall to balance both metrics.
+
+Here, we have the same goal, we cannot allow to skip important class, so we should find tradeoff between maximizing Recall and not allowing Precision be too bad to allow lots of false positive results.
 
 **Outline the criteria for success of the overall system from both a technical and business perspective.**
 
 Technical Perspective:
-- System Scalability: Ability to handle increasing data volumes and user activity.
+- System Scalability: Ability to handle increasing data volumes and user activity in peak time.
 - Latency: Ensure real-time or near-real-time predictions.
-- System Uptime: High availability and reliability of the system.
+- System Uptime: High availability and reliability of the system, ability to perform a quick revert or fix.
 - Maintenance: Ease of updating models and pipelines.
+- Delivery: Code reuse and increase in delivery
+- Usability: Ability to experiment not only for DS/ML specialists, but also for Analysts
 
 Business Perspective:
 - Reduction in Moderation Effort: Lower the number of false positives requiring manual review.
-- Improved Content Safety: Higher accuracy in detecting prohibited content.
+- Improved Content Safety: Higher accuracy in detecting prohibited content, less not revealed cases.
 - Cost Efficiency: Reduced operational costs through automation and improved model performance.
 - User Satisfaction: Enhanced user experience by minimizing fraudulent activities and inappropriate content.
+- Faster Delivery: More ML/Data hypothesis tested
