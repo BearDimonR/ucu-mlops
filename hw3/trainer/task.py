@@ -34,6 +34,13 @@ parser.add_argument(
     type=str,
     help="Location of the dataset",
 )
+parser.add_argument(
+    "--model-dir",
+    dest="model_dir",
+    default=os.getenv("AIP_MODEL_DIR"),
+    type=str,
+    help="Storage location for the model",
+)
 args = parser.parse_args()
 
 

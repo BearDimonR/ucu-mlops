@@ -11,4 +11,6 @@ So, in this homework:
 4. Implemented baseline local training on managed notebook with experiment tracking
 ![img.png](images/local_runs.png)
 5. Implemented training service and job submission logic for training on managed VertexAI service with custom parameters
-
+![img.png](images/training.png)
+![img.png](images/runs.png)
+![img.png](images/lineage.png)
