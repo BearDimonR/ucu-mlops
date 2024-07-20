@@ -224,7 +224,7 @@ def evaluate_model(**context):
         prediction_type="classification",
         target_field_name="is_scam",
         bigquery_source_uri=f"bq://{PROJECT_ID}.{DATASET_ID}.{VALIDATE_TABLE_ID}",
-        bigquery_destination_output_uri=f"bq://{PROJECT_ID}.{DATASET_ID}.{VALIDATE_STAGING_TABLE_ID}-current",
+        bigquery_destination_output_uri=f"bq://{PROJECT_ID}.{DATASET_ID}",
         service_account=SERVICE_ACCOUNT,
     )
 
@@ -235,7 +235,7 @@ def evaluate_model(**context):
         prediction_type="classification",
         target_field_name="is_scam",
         bigquery_source_uri=f"bq://{PROJECT_ID}.{DATASET_ID}.{VALIDATE_TABLE_ID}",
-        bigquery_destination_output_uri=f"bq://{PROJECT_ID}.{DATASET_ID}.{VALIDATE_STAGING_TABLE_ID}-prev",
+        bigquery_destination_output_uri=f"bq://{PROJECT_ID}.{DATASET_ID}",
         service_account=SERVICE_ACCOUNT,
     )
 
